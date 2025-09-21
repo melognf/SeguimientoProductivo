@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Producción — Línea (MVP)</title>
+  <meta name="theme-color" content="#1170d6" />
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+  <main class="wrap">
+    <h1>Control de Producción — Línea 1</h1>
+
+    <!-- 1) Definir corrida -->
+    <section class="card">
+  <h2> Nueva corrida</h2>
+  <div class="grid-2">
+    <label>Sabor
+      <select id="sabor">
+        <option value="" selected disabled>— Elegir —</option>
+        <option>Powerade FT</option>
+        <option>Powerade MB</option>
+        <option>Powerade UVA</option>
+        <option>Powerade MZN</option>
+        <option>Powerade SOUR</option>
+        <option>Cepita NJA</option>
+        <option>Cepita DZN</option>
+        <option>Cepita FM</option>
+      </select>
+    </label>
+
+    <label>Formato
+      <select id="formato">
+        <option value="" selected disabled>— Elegir —</option>
+        <option>300 ml</option>
+        <option>500 ml</option>
+        <option>995 ml</option>
+        <option>1500 ml</option>
+      </select>
+    </label>
+
+    <label class="span-2">Objetivo total (botellas)
+      <input id="objetivoTotal" type="number" min="0" inputmode="numeric" placeholder="Ej: 25000">
+    </label>
+  </div>
+  <button id="btnGuardarCorrida" class="btn primario">Guardar objetivo</button>
+  <small id="corridaInfo" class="muted"></small>
+</section>
+
+
+    <!-- 2) Agregar parciales -->
+    <section class="card">
+      <h2> Estado de la corrida</h2>
+      <div class="progress"><div id="barra" class="progress-bar" style="width:0%">0%</div></div>
+      <div class="resumen">
+        <div><span class="k">OBJETIVO</span><span id="vObjetivo" class="v">—</span></div>
+        <div><span class="k">ACUMULADO</span><span id="vAcumulado" class="v">—</span></div>
+        <div><span class="k">RESTANTE</span><span id="vRestante" class="v">—</span></div>
+      </div>
+    </section>
+    <!-- 3) Progreso general -->
+    <section class="card">
+      <h2> Parcial por turno</h2>
+      <div class="grid-3">
+        <label>Turno
+          <select id="turno">
+            <option value="" selected disabled>— Elegir —</option>
+            <option>A</option>
+            <option>B</option>
+            <option>C</option>
+            <option>D</option>
+          </select>
+        </label>
+        <label>Operador
+          <input id="operador" type="text" placeholder="Nombre y apellido">
+        </label>
+        <label>Objetivo del turno (cajas)
+          <input id="objetivoTurno" type="number" min="0" inputmode="numeric" placeholder="Ej: 8000">
+        </label>
+        <label class="span-2">Botellas envasadas (parcial)
+          <input id="botellasParcial" type="number" min="0" inputmode="numeric" placeholder="Ej: 7300">
+        </label>
+        <div class="span-1 flex-end">
+          <button id="btnAgregarParcial" class="btn ok">Agregar parcial</button>
+        </div>
+      </div>
+      <p class="muted">Cumplimiento turno = botellas / objetivoTurno × 100.</p>
+    </section>
+
+
+    <!-- 4) Tabla de parciales -->
+    <section class="card">
+      <h2> Parciales cargados</h2>
+      <div class="tabla">
+        <div class="thead">
+          <span>Fecha/Hora</span>
+          <span>Turno</span>
+          <span>Operador</span>
+          <span>Objetivo turno</span>
+          <span>Botellas</span>
+          <span>% Cumpl. turno</span>
+          <span>Acciones</span>
+        </div>
+        <div id="listaParciales" class="tbody"></div>
+      </div>
+    </section>
+<div class="center" style="margin:16px 0 4px">
+  <button id="btnReiniciar" class="btn bad">Reiniciar a cero</button>
+</div>
+
+    <footer class="muted center">MVP local (sin backend). Luego lo pasamos a Firestore, manteniendo el mismo flujo.</footer>
+  </main>
+
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="app-firebase.js"></script>
+
+</body>
+</html>
+
+
