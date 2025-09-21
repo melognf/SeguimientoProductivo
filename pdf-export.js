@@ -407,4 +407,24 @@ async function generarPDF(){
 }
 
 /* ---------- botón ---------- */
-document.getElementById('btnPDF')?.addEventListener('click', generarPDF);
+const btnPDF = document.getElementById('btnPDF');
+if (btnPDF) {
+  btnPDF.addEventListener('click', async () => {
+    // bloqueamos el botón y mostramos spinner
+    btnPDF.classList.add('loading');
+    btnPDF.disabled = true;
+
+    try {
+      // tu función actual de PDF es async, así que la esperamos
+      await generarPDF();
+    } catch (e) {
+      console.error('Error generando PDF:', e);
+      // si querés, podés mostrar un alert acá
+    } finally {
+      // restauramos el botón sí o sí
+      btnPDF.classList.remove('loading');
+      btnPDF.disabled = false;
+    }
+  });
+}
+
