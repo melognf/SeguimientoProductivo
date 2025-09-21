@@ -306,49 +306,65 @@ async function generarPDF(){
   try{
     const jsPDF = await ensurePDFLibs();
     const doc = new jsPDF({ unit:'mm', format:'a4', compress:true });
-    const pageW = doc.internal.pageSize.getWidth();
-    const marginX = 14;
-    const fmtAR = (n)=> new Intl.NumberFormat('es-AR').format(n);
+
+    // --- Layout / espacios ---
+    const pageW    = doc.internal.pageSize.getWidth();
+    const marginX  = 14;           // margen lateral
+    const GAP      = 10;           // separación vertical entre secciones
+    const HR_GAP   = 6;            // respiro tras una línea divisoria
+    const fmtAR    = (n)=> new Intl.NumberFormat('es-AR').format(n);
+
+    const hr = (y) => {            // regla horizontal sutil
+      doc.setDrawColor(220);
+      doc.setLineWidth(0.3);
+      doc.line(marginX, y, pageW - marginX, y);
+      return y + HR_GAP;
+    };
 
     const data = collectFromDOM();
 
+    // --- Logo ---
     try{
       const logo = await getLogoDataURL();
       doc.addImage(logo, 'PNG', pageW - marginX - 18, 10, 18, 18, undefined, 'FAST');
     }catch{}
+
+    // --- Título ---
     doc.setFont('helvetica','bold'); doc.setFontSize(18);
     doc.text('Control de Producción — Línea 1', marginX, 18);
 
-    doc.setFont('helvetica','normal'); doc.setFontSize(11);
-    const resumenY = 28;
+    // --- Resumen (dos columnas) ---
+    doc.setFont('helvetica','normal'); doc.setFontSize(12);
+    const resumenY = 30;         // más abajo para dar aire
+    const colR = 110;
+
     const idTxt = data.corridaId ? data.corridaId : '(sin ID visible)';
-    doc.text(`Corrida: ${idTxt}`, marginX, resumenY);
-    doc.text(`Sabor: ${data.sabor || '—'}`, marginX, resumenY+6);
+    doc.text(`Corrida: ${idTxt}`,   marginX, resumenY);
+    doc.text(`Sabor: ${data.sabor || '—'}`,   marginX, resumenY+6);
     doc.text(`Formato: ${data.formato || '—'}`, marginX, resumenY+12);
 
-    const pct = (data.objetivo>0) ? Math.min(100, Math.round(data.acumulado*100/data.objetivo)) : 0;
-    doc.text(`Objetivo (botellas): ${fmtAR(data.objetivo)}`, 110, resumenY);
-    doc.text(`Acumulado (botellas): ${fmtAR(data.acumulado)}`, 110, resumenY+6);
-    doc.text(`Restante (botellas): ${fmtAR(data.restante)}  —  Progreso: ${pct}%`, 110, resumenY+12);
+    const objetivo   = Number(data.objetivo)||0;
+    const acumulado  = Number(data.acumulado)||0;
+    const restante   = Number(data.restante)||0;
+    const pct        = objetivo>0 ? Math.min(100, Math.round(acumulado*100/objetivo)) : 0;
 
-    let y = resumenY + 20;
+    doc.text(`Objetivo (botellas): ${fmtAR(objetivo)}`, colR, resumenY);
+    doc.text(`Acumulado (botellas): ${fmtAR(acumulado)}`, colR, resumenY+6);
+    doc.text(`Restante (botellas): ${fmtAR(restante)}  —  Progreso: ${pct}%`, colR, resumenY+12);
 
-    // Gráfico 1
+    let y = resumenY + 16;
+    y = hr(y);                    // separador
+
+    // --- Gráfico 1 (acumulado + objetivo) ---
     const img1 = makeAvanceChartImage(data.parciales, data.objetivo);
-
     if (img1){
-      doc.addImage(img1, 'PNG', marginX, y, pageW - marginX*2, 70);
-      y += 76;
+      const imgH = 85;           // un poco más alto que antes
+      doc.addImage(img1, 'PNG', marginX, y, pageW - marginX*2, imgH);
+      y += imgH + GAP;
+      y = hr(y);
     }
 
-    // Gráfico 2
-    //const img2 = makeTurnosObjetivoChartImage(data.parciales, data.formato);
-    //if (img2){
-    //  doc.addImage(img2, 'PNG', marginX, y, pageW - marginX*2, 70);
-    //  y += 76;//
-    //}
-
-    // Tabla
+    // --- Tabla de parciales ---
     if (data.parciales.length){
       const uxp = envasesPorPaquete(data.formato);
       const body = data.parciales.map(p => {
@@ -369,14 +385,16 @@ async function generarPDF(){
         startY: y,
         head: [['Fecha/Hora','Turno','Operador','Obj. (cajas)','Botellas','Cajas','% Cumpl.']],
         body,
-        styles: { fontSize: 9, cellPadding: 2 },
-        headStyles: { fillColor: [17,112,214] },
+        margin: { left: marginX, right: marginX },
         theme: 'grid',
-        margin: { left: marginX, right: marginX }
+        styles: { fontSize: 10, cellPadding: 3, lineWidth: 0.1, lineColor: [220,220,220] },
+        headStyles: { fillColor: [17,112,214], textColor: 255, lineWidth: 0.1 },
+        alternateRowStyles: { fillColor: [248,250,252] }, // leve zebra
       });
-      y = doc.lastAutoTable.finalY + 6;
+      y = doc.lastAutoTable.finalY + GAP;
     }
 
+    // --- Pie ---
     doc.setFontSize(9); doc.setTextColor(140);
     doc.text('Exportado desde la app — Cliente (jsPDF).', marginX, y);
 
