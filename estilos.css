@@ -411,3 +411,29 @@ input, select{ overflow:hidden; text-overflow:ellipsis; }
 
 /* Alineación del botón Reiniciar para que ambos queden prolijos */
 #btnReiniciar{ display:inline-flex; margin:16px auto 10px; }
+
+/* ===== Mobile: "Estado de la corrida" sticky en la parte superior ===== */
+/* Selecciona el SEGUNDO .card dentro de .wrap (tu "Estado de la corrida") */
+@media (max-width: 780px){
+  .wrap > section.card:nth-of-type(2){
+    position: sticky;
+    top: calc(env(safe-area-inset-top) + 8px); /* respeta notch en iOS */
+    z-index: 1000;
+    background: var(--card);
+    box-shadow: 0 10px 28px rgba(0,0,0,.12);
+    border-color: #cfe0ff;            /* bordecito más suave cuando está pegado */
+  }
+
+  /* Compacto un poco para que no tape demasiado */
+  .wrap > section.card:nth-of-type(2) h2{ margin-bottom:8px; font-size:1rem; }
+  .wrap > section.card:nth-of-type(2) .progress{ height:24px; }
+  .wrap > section.card:nth-of-type(2) .resumen{ gap:8px; }
+  .wrap > section.card:nth-of-type(2) .resumen .k{ font-size:.75rem; }
+  .wrap > section.card:nth-of-type(2) .resumen .v{ font-size:1.05rem; }
+}
+
+/* Opcional: un poquito de aire extra debajo del sticky para que el contenido
+   no se sienta "pegado" cuando pasa por detrás (solo en mobile). */
+@media (max-width: 780px){
+  .wrap > section.card:nth-of-type(3){ margin-top: 12px; }
+}
