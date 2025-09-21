@@ -437,3 +437,89 @@ input, select{ overflow:hidden; text-overflow:ellipsis; }
 @media (max-width: 780px){
   .wrap > section.card:nth-of-type(3){ margin-top: 12px; }
 }
+
+/* --- Aseguro posicionamiento para el switch dentro del card --- */
+.card{ position: relative; }
+
+/* --- Switch mini: se inserta por JS en el card de Estado de la corrida --- */
+.mini-switch{
+  position:absolute; right:10px; top:10px;
+  width:46px; height:26px; border-radius:9999px;
+  background:#e5e7eb; border:1px solid #d1d5db;
+  box-shadow:0 6px 16px rgba(0,0,0,.15);
+  cursor:pointer; outline:none;
+  transition: background .2s ease, border-color .2s ease, transform .15s ease;
+  z-index: 1200;
+}
+.mini-switch::after{
+  content:""; position:absolute; top:2px; left:2px;
+  width:22px; height:22px; border-radius:50%;
+  background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.3);
+  transition: transform .25s cubic-bezier(.4,0,.2,1);
+}
+.mini-switch:hover{ transform: translateY(-1px); }
+.mini-switch.on{ background:#2563eb; border-color:#1d4ed8; }
+.mini-switch.on::after{ transform: translateX(20px); }
+
+/* ================== TEMA OSCURO (Variables) ================== */
+/* A) Si el usuario NO forzó tema, seguí la preferencia del sistema */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme]){
+    --bg:#0b1220;
+    --card:#111827;
+    --ink:#e5e7eb;
+    --muted:#94a3b8;
+    --brand:#3b82f6;
+    --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+    --shadow: 0 10px 30px rgba(0,0,0,.45);
+  }
+}
+
+/* B) Forzar oscuro manualmente cuando data-theme="dark" */
+:root[data-theme="dark"]{
+  --bg:#0b1220;
+  --card:#111827;
+  --ink:#e5e7eb;
+  --muted:#94a3b8;
+  --brand:#3b82f6;
+  --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+  --shadow: 0 10px 30px rgba(0,0,0,.45);
+}
+
+/* (Opcional) Forzar claro manualmente */
+:root[data-theme="light"]{
+  /* sin cambios: usás tus variables actuales */
+}
+
+/* ================== Overrides de componentes en DARK ================== */
+/* 1) Cuando el usuario fuerza oscuro */
+:root[data-theme="dark"] body{ background: var(--bg); color: var(--ink); }
+:root[data-theme="dark"] .card{ background:var(--card); color:var(--ink); box-shadow:var(--shadow); border-color:#2b3c64; }
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select{ background:#0f172a; border-color:#334155; color:var(--ink); }
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] select::placeholder{ color:#7c8aa3; }
+:root[data-theme="dark"] .progress{ background:#1f2a44; border-color:#334155; }
+:root[data-theme="dark"] .tabla .thead{ background:#1f2a44; color:var(--ink); }
+:root[data-theme="dark"] .tabla .row{ background:#0f172a; border-color:#263244; }
+:root[data-theme="dark"] #corridaInfo{ color:var(--ink); }
+:root[data-theme="dark"] .corrida-badge{ background:#0f1b30; border-color:#20345c; color:#9cc0ff; }
+:root[data-theme="dark"] .corrida-badge.id{ background:#0f172a; border-color:#263244; color:#cbd5e1; }
+:root[data-theme="dark"] .btn{ box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+
+/* 2) Cuando se usa el modo “auto” (dark del sistema y NO hay data-theme) */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme]) body{ background: var(--bg); color: var(--ink); }
+  :root:not([data-theme]) .card{ background:var(--card); color:var(--ink); box-shadow:var(--shadow); border-color:#2b3c64; }
+  :root:not([data-theme]) input,
+  :root:not([data-theme]) select{ background:#0f172a; border-color:#334155; color:var(--ink); }
+  :root:not([data-theme]) input::placeholder,
+  :root:not([data-theme]) select::placeholder{ color:#7c8aa3; }
+  :root:not([data-theme]) .progress{ background:#1f2a44; border-color:#334155; }
+  :root:not([data-theme]) .tabla .thead{ background:#1f2a44; color:var(--ink); }
+  :root:not([data-theme]) .tabla .row{ background:#0f172a; border-color:#263244; }
+  :root:not([data-theme]) #corridaInfo{ color:var(--ink); }
+  :root:not([data-theme]) .corrida-badge{ background:#0f1b30; border-color:#20345c; color:#9cc0ff; }
+  :root:not([data-theme]) .corrida-badge.id{ background:#0f172a; border-color:#263244; color:#cbd5e1; }
+  :root:not([data-theme]) .btn{ box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+}

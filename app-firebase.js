@@ -299,3 +299,60 @@ async function cloudReiniciarCorrida(){
   await deleteDoc(corridaRef);
   await setDoc(doc(cloud.db, 'meta', 'actual'), { corridaId: '', updatedAt: serverTimestamp() }, { merge: true });
 }
+
+// ===== Tema global (claro/oscuro) con switch dentro del card "Estado de la corrida" =====
+(function(){
+  const THEME_KEY = 'ui_theme'; // 'light' | 'dark' | null (seguir sistema)
+  const root = document.documentElement;
+
+  function applyTheme(mode){ // mode: 'light' | 'dark' | null
+    if(mode === 'dark'){
+      root.setAttribute('data-theme','dark');
+    }else if(mode === 'light'){
+      root.setAttribute('data-theme','light');
+    }else{
+      root.removeAttribute('data-theme'); // seguir sistema
+    }
+    updateSwitch(mode);
+  }
+
+  function updateSwitch(mode){
+    const btn = document.getElementById('appThemeToggle');
+    if(!btn) return;
+    // ¿está oscuro ahora?
+    const isDark = mode ? (mode === 'dark') : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    btn.classList.toggle('on', isDark);
+    btn.setAttribute('aria-checked', isDark ? 'true' : 'false');
+  }
+
+  // Crear el switch dentro del 2º card (Estado de la corrida)
+  const estadoCard = document.querySelector('.wrap > section.card:nth-of-type(2)');
+  if (!estadoCard) return;
+  const btn = document.createElement('button');
+  btn.id = 'appThemeToggle';
+  btn.className = 'mini-switch';
+  btn.setAttribute('aria-label', 'Cambiar tema (oscuro/claro)');
+  btn.setAttribute('role', 'switch');
+  btn.setAttribute('aria-checked', 'false');
+  estadoCard.appendChild(btn);
+
+  // Cargar preferencia guardada (si existe) y aplicar
+  const saved = localStorage.getItem(THEME_KEY); // 'light' | 'dark' | null
+  applyTheme(saved || null);
+
+  // Si el usuario no eligió nada, al cambiar el sistema en vivo, reflejar en el switch
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  mq.addEventListener?.('change', () => {
+    if (!localStorage.getItem(THEME_KEY)) { // sólo si sigue “automático”
+      applyTheme(null);
+    }
+  });
+
+  // Toggle: alternar entre claro y oscuro (si querés, podemos agregar un tercer estado “auto”)
+  btn.addEventListener('click', () => {
+    const current = root.getAttribute('data-theme'); // 'light' | 'dark' | null
+    const next = (current === 'dark') ? 'light' : 'dark';
+    localStorage.setItem(THEME_KEY, next);
+    applyTheme(next);
+  });
+})();
