@@ -84,28 +84,58 @@ function collectFromDOM(){
 }
 
 /* ---------- gráfico 1: acumulado ---------- */
-function makeAvanceChartImage(parciales){
+/* ---------- gráfico 1: acumulado + línea de objetivo ---------- */
+function makeAvanceChartImage(parciales, objetivoTotalBotellas){
   if (!parciales.length) return null;
+
   const cvs = document.createElement('canvas'); cvs.width = 900; cvs.height = 420;
   const ctx = cvs.getContext('2d');
 
   let acum = 0;
   const labels = [];
-  const data = parciales.map(p => {
+  const dataAcum = parciales.map(p => {
     labels.push(p.fechaTxt || '');
     acum += Number(p.botellas || 0);
     return acum;
   });
 
+  // para que el objetivo entre en la escala del eje Y
+  const maxY = Math.max(...dataAcum, Number(objetivoTotalBotellas||0));
+  const suggestedMax = Math.ceil(maxY * 1.1);  // 10% de aire
+
   const chart = new window.Chart(ctx, {
     type: 'line',
-    data: { labels, datasets: [{ label: 'Acumulado (botellas)', data, tension: 0.3 }] },
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Acumulado (botellas)',
+          data: dataAcum,
+          tension: 0.3,
+          borderWidth: 2,
+          pointRadius: 2
+        },
+        {
+          label: 'Objetivo (botellas)',
+          data: labels.map(() => Number(objetivoTotalBotellas||0)),
+          borderWidth: 2,
+          pointRadius: 0,
+          borderDash: [6, 4],
+          borderColor: 'rgba(220,0,0,0.9)'
+        }
+      ]
+    },
     options: {
       responsive: false,
-      animation: false,       // <- clave
-      events: [],             // evita listeners innecesarios
-      plugins: { legend: { display: true }, title: { display: true, text: 'Avance de producción (acumulado)' } },
-      scales: { y: { beginAtZero: true } }
+      animation: false,
+      events: [],
+      plugins: {
+        legend: { display: true },
+        title: { display: true, text: 'Avance de producción (acumulado)' }
+      },
+      scales: {
+        y: { beginAtZero: true, suggestedMax }
+      }
     }
   });
 
@@ -113,6 +143,7 @@ function makeAvanceChartImage(parciales){
   chart.destroy();
   return url;
 }
+
 
 /* ---------- gráfico 2: barras por turno + línea objetivo ---------- */
 function makeTurnosObjetivoChartImage(parciales, formato){
@@ -248,7 +279,8 @@ async function generarPDF(){
     let y = resumenY + 20;
 
     // Gráfico 1
-    const img1 = makeAvanceChartImage(data.parciales);
+    const img1 = makeAvanceChartImage(data.parciales, data.objetivo);
+
     if (img1){
       doc.addImage(img1, 'PNG', marginX, y, pageW - marginX*2, 70);
       y += 76;
