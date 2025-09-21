@@ -159,7 +159,7 @@ function cloudEnqueue(fn){
 
 (async function bootCloud(){
   try{
-    const cfg = await import('./firebase-config.js'); // debe existir y exportar db + onReadyAuth
+    const cfg = await import('./firebase-config.js?v=13'); // debe existir y exportar db + onReadyAuth
     const f  = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
     cloud.db = cfg.db; cloud.fns = f; cloud.available = true;
 
