@@ -136,21 +136,46 @@ async function guardarCorrida(){
   const obj     = Number(objetivoTotalEl.value);
 
   if(!sabor || !formato || !(obj>0)){
-    alert('Completá Sabor, Formato y un Objetivo total > 0.'); return;
+    alert('Completá Sabor, Formato y un Objetivo total > 0.'); 
+    return;
   }
+
   const id = `${sabor.replace(/\s+/g,'')}_${formato.replace(/\s+/g,'')}_${hoyISO()}`;
   const corridaRef = doc(db, 'corridas', id);
 
-  await setDoc(corridaRef, {
-    sabor, formato, objetivoTotal: obj,
-    createdAt: serverTimestamp(), updatedAt: serverTimestamp()
-  }, { merge: true });
+  try{
+    const snap = await getDoc(corridaRef);
 
-  estado.corridaId = id;
-  // limpiar UI
-  objetivoTotalEl.value = '';
-  startListeners();
+    if (snap.exists()) {
+      // ✅ UPDATE (no tocamos createdAt)
+      await updateDoc(corridaRef, {
+        sabor, formato, objetivoTotal: obj,
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      // ✅ CREATE (incluye createdAt)
+      await setDoc(corridaRef, {
+        sabor, formato, objetivoTotal: obj,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    }
+
+    estado.corridaId = id;
+    objetivoTotalEl.value = '';   // limpiar input si querés
+    startListeners();             // engancha listeners en tiempo real
+  }catch(err){
+    console.error('Error guardando corrida:', err);
+    alert(
+      'No se pudo guardar el objetivo.\n' +
+      'Posibles causas:\n' +
+      '• Reglas de Firestore (createdAt en update)\n' +
+      '• App Check en “Aplicar/Enforce” sin configurar claves\n' +
+      '• Dominio no autorizado en Authentication → Settings → Authorized domains'
+    );
+  }
 }
+
 
 async function agregarParcial(){
   if(!estado.corridaId){ alert('Primero guardá la corrida.'); return; }
