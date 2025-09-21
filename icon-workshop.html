@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Taller de Íconos — L1</title>
+<style>
+  body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:24px;color:#0f172a}
+  .box{border:2px dashed #94a3b8;border-radius:12px;padding:20px;text-align:center;background:#f8fafc}
+  .row{display:flex;gap:16px;align-items:center;margin:14px 0}
+  label{font-weight:600}
+  input[type="range"]{width:240px}
+  button{background:#1170d6;color:#fff;border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
+  .muted{color:#64748b}
+  .preview{display:grid;grid-template-columns:repeat(3,110px);gap:12px; margin-top:16px}
+  .tile{border:1px solid #e2e8f0;border-radius:10px;padding:6px;background:#fff}
+  .tile img{width:96px;height:96px;display:block;margin:0 auto}
+  code{background:#f1f5f9;padding:2px 6px;border-radius:6px}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+</head>
+<body>
+  <h1>Taller de íconos — centrar y exportar</h1>
+
+  <div class="box" id="drop">
+    <p><b>Arrastrá y soltá</b> tu logo (PNG/SVG) aquí, o <input id="file" type="file" accept="image/*"></p>
+    <p class="muted">Se centrará en un lienzo 1024×1024 y se generarán todos los tamaños.</p>
+  </div>
+
+  <div class="row">
+    <label>Margen (por lado):</label>
+    <input id="margin" type="range" min="6" max="18" value="10">
+    <span id="marginVal">10%</span>
+  </div>
+  <div class="row">
+    <label>Color de fondo maskable:</label>
+    <input id="bg" type="color" value="#111111">
+    <span class="muted">Se usa para la variante “maskable” (Android/iOS recorta con máscara).</span>
+  </div>
+
+  <div class="row">
+    <button id="gen">Generar ZIP</button>
+    <span class="muted">Se descargará <code>icons.zip</code> con todos los PNG.</span>
+  </div>
+
+  <div id="prev" class="preview"></div>
+
+<script>
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('file');
+const margin = document.getElementById('margin');
+const marginVal = document.getElementById('marginVal');
+const bg = document.getElementById('bg');
+const genBtn = document.getElementById('gen');
+const prev = document.getElementById('prev');
+
+let sourceImg = null;   // HTMLImageElement con el logo cargado
+
+margin.addEventListener('input', ()=> marginVal.textContent = margin.value + '%');
+marginVal.textContent = margin.value + '%';
+
+['dragenter','dragover'].forEach(ev =>
+  drop.addEventListener(ev, e => { e.preventDefault(); drop.style.background='#eef2ff'; })
+);
+['dragleave','drop'].forEach(ev =>
+  drop.addEventListener(ev, e => { e.preventDefault(); drop.style.background='#f8fafc'; })
+);
+drop.addEventListener('drop', e => {
+  const f = e.dataTransfer.files[0];
+  if (f) loadImageFile(f);
+});
+fileInput.addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) loadImageFile(f);
+});
+
+function loadImageFile(file){
+  const r = new FileReader();
+  r.onload = () => {
+    const img = new Image();
+    img.onload = () => { sourceImg = img; renderPreview(); };
+    img.src = r.result;
+  };
+  r.readAsDataURL(file);
+}
+
+function makeBase1024(variant){ // variant: 'any' (transparente) | 'maskable' (fondo)
+  if(!sourceImg) return null;
+  const c = document.createElement('canvas'); c.width = c.height = 1024;
+  const ctx = c.getContext('2d');
+  if (variant==='maskable'){ // fondo sólido para evitar recorte feo
+    ctx.fillStyle = bg.value;
+    ctx.fillRect(0,0,1024,1024);
+  } else {
+    ctx.clearRect(0,0,1024,1024);
+  }
+
+  // Escalado con margen (por lado)
+  const m = parseInt(margin.value,10)/100; // ej 0.10
+  const box = 1024*(1-2*m);                // tamaño útil
+  const ratio = Math.min(box/sourceImg.width, box/sourceImg.height);
+  const w = Math.round(sourceImg.width*ratio);
+  const h = Math.round(sourceImg.height*ratio);
+  const x = Math.round((1024 - w)/2);
+  const y = Math.round((1024 - h)/2);
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(sourceImg, x, y, w, h);
+  return c;
+}
+
+function resizeFrom(baseCanvas, size){
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(baseCanvas, 0, 0, size, size);
+  return c.toDataURL('image/png');
+}
+
+function renderPreview(){
+  prev.innerHTML = '';
+  const base = makeBase1024('any');
+  const sizes = [192, 512];
+  sizes.forEach(s=>{
+    const url = resizeFrom(base, s);
+    const div = document.createElement('div');
+    div.className='tile';
+    div.innerHTML = `<div class="muted" style="font-size:12px;text-align:center">${s}×${s}</div><img src="${url}">`;
+    prev.appendChild(div);
+  });
+}
+
+function dataURLtoBlob(dataurl){
+  const arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]); let n = bstr.length; const u8 = new Uint8Array(n);
+  while(n--) u8[n] = bstr.charCodeAt(n);
+  return new Blob([u8], {type:mime});
+}
+
+genBtn.addEventListener('click', async ()=>{
+  if(!sourceImg){ alert('Cargá un logo primero.'); return; }
+
+  const zip = new JSZip();
+
+  // Bases 1024
+  const baseAny  = makeBase1024('any');
+  const baseMask = makeBase1024('maskable');
+
+  // “any”
+  [192,512].forEach(s=>{
+    zip.file(`l1-${s}.png`, dataURLtoBlob(resizeFrom(baseAny, s)));
+  });
+
+  // “maskable”
+  [192,512].forEach(s=>{
+    zip.file(`l1-maskable-${s}.png`, dataURLtoBlob(resizeFrom(baseMask, s)));
+  });
+
+  // Apple touch
+  [180,167,152,120].forEach(s=>{
+    zip.file(`apple-touch-icon-${s}.png`, dataURLtoBlob(resizeFrom(baseAny, s)));
+  });
+
+  // Favicon
+  [32,16].forEach(s=>{
+    zip.file(`favicon-${s}.png`, dataURLtoBlob(resizeFrom(baseAny, s)));
+  });
+
+  // Bases por si las querés guardar
+  zip.file('l1-base-1024.png', dataURLtoBlob(baseAny.toDataURL('image/png')));
+  zip.file('l1-base-1024-maskable.png', dataURLtoBlob(baseMask.toDataURL('image/png')));
+
+  const blob = await zip.generateAsync({type:'blob'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'icons.zip';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+</script>
+</body>
+</html>
