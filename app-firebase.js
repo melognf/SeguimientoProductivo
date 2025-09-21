@@ -273,7 +273,9 @@ document.getElementById('btnAgregarParcial').addEventListener('click', agregarPa
 document.getElementById('btnReiniciar')?.addEventListener('click', reiniciarCorrida);
 
 // Al tener auth, abrimos automáticamente la corrida actual (si existe)
-onReadyAuth(() => { abrirCorridaActual(); });
+onReadyAuth(() => {
+  abrirCorridaActual();
+});
 
 /************** PDF: libs on-demand + generación + compartir **************/
 async function loadScriptOnce(src){
@@ -286,24 +288,27 @@ async function loadScriptOnce(src){
     document.head.appendChild(s);
   });
 }
+
 async function ensurePDFLibs(){
   // UMD globals: window.jspdf.jsPDF y doc.autoTable
   await loadScriptOnce('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
   await loadScriptOnce('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js');
-  if (!window.Chart) await loadScriptOnce('https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js');
+  if (!window.Chart) {
+    await loadScriptOnce('https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js');
+  }
   return window.jspdf.jsPDF;
 }
 
-// LOGO (con fallback de ruta por si tu carpeta es "licons")
-const LOGO_PRIMARY = 'icons/l1-logo-512.png';
-const LOGO_FALLBACK = 'licons/l1-logo-512.png';
+// === LOGO ===
+// Cambiá esta ruta si tu carpeta se llama "licons"
+const LOGO_PATH = 'icons/l1-logo-512.png';
 
 let _logoDataURL = null;
 async function getLogoDataURL(){
   if (_logoDataURL) return _logoDataURL;
-  let res = await fetch(LOGO_PRIMARY, { cache: 'force-cache' });
-  if (!res.ok) res = await fetch(LOGO_FALLBACK, { cache: 'force-cache' });
-  if (!res.ok) throw new Error('No se pudo cargar el logo');
+  // Traemos el PNG y lo convertimos a dataURL (evita problemas de CORS)
+  const res = await fetch(LOGO_PATH, { cache: 'force-cache' });
+  if (!res.ok) throw new Error('No se pudo cargar el logo en ' + LOGO_PATH);
   const blob = await res.blob();
   _logoDataURL = await new Promise((resolve) => {
     const fr = new FileReader();
@@ -353,12 +358,15 @@ async function generarPDF(){
   const pageW = doc.internal.pageSize.getWidth();
   const marginX = 14;
 
-  // Logo
+  // === Encabezado con LOGO ===
   try{
     const logo = await getLogoDataURL();
-    const w = 18, h = 18;
+    const w = 18; // ancho del logo en mm
+    const h = 18;
     doc.addImage(logo, 'PNG', pageW - marginX - w, 10, w, h, undefined, 'FAST');
-  }catch(e){ console.warn('Logo no disponible:', e); }
+  }catch(e){
+    console.warn('Logo no disponible:', e);
+  }
 
   // Título
   doc.setFont('helvetica','bold');
@@ -378,6 +386,7 @@ async function generarPDF(){
   doc.text(`Sabor: ${estado.sabor}`, marginX, resumenY+6);
   doc.text(`Formato: ${estado.formato}`, marginX, resumenY+12);
 
+  // Resumen numérico
   const objetivo = Number(estado.objetivoTotal)||0;
   const acumuladoBot = estado.parciales.reduce((a,p)=>a+Number(p.botellas||0),0);
   const restante = Math.max(objetivo - acumuladoBot, 0);
@@ -441,16 +450,26 @@ async function generarPDF(){
 
 // Compartir si el navegador lo permite; si no, descargar
 async function descargarOCompartir(doc, filename){
+  // jsPDF → Blob
   const blob = doc.output('blob');
-  const file = new File([blob], filename, { type: 'application/pdf' });
 
+  // Web Share API (solo en https/localhost y en móviles/desktop nuevos)
+  const file = new File([blob], filename, { type: 'application/pdf' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try{
-      await navigator.share({ files: [file], title: 'L1 Producción', text: 'Reporte de producción' });
-      return;
-    }catch(e){ console.warn('Share cancelado/falló, descargando...', e); }
+      await navigator.share({
+        files: [file],
+        title: 'L1 Producción',
+        text: 'Reporte de producción'
+      });
+      return; // listo
+    }catch(e){
+      // Si cancela o falla, seguimos al fallback
+      console.warn('Share cancelado/falló, descargando...', e);
+    }
   }
 
+  // Fallback: descarga
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename;
@@ -458,14 +477,5 @@ async function descargarOCompartir(doc, filename){
   URL.revokeObjectURL(url);
 }
 
-/***** Botón PDF *****/
+// Listener del botón
 document.getElementById('btnPDF')?.addEventListener('click', generarPDF);
-
-// Listener delegado (por si el botón se inyecta luego)
-document.addEventListener('click', (e) => {
-  const t = e.target;
-  if (t && t.id === 'btnPDF') generarPDF();
-});
-
-// Exponer global (por si quedó algún onclick viejo o caché)
-window.generarPDF = generarPDF;
