@@ -1,7 +1,5 @@
-// pdf-export.js — SOLO lee el DOM; no modifica tu app.
-// Agrega 2 gráficos al PDF:
-// 1) Línea del acumulado de botellas.
-// 2) Barras por turno (X=botellas, Y=turnos) + línea vertical del objetivo.
+// pdf-export.js — SOLO lee el DOM y genera/compartir PDF.
+// Fix: Chart.js con animation:false (render inmediato) y línea de objetivo correcta.
 
 function loadScriptOnce(src){
   return new Promise((resolve, reject) => {
@@ -30,7 +28,7 @@ function toNumber(str){
   return Number.isFinite(n) ? n : 0;
 }
 
-// === LOGO ===
+// === Logo ===
 const LOGO_PATH = 'icons/l1-logo-512.png';
 let _logoDataURL = null;
 async function getLogoDataURL(){
@@ -53,7 +51,7 @@ function envasesPorPaquete(formato){
   return 6;
 }
 
-/* ------------ tomar datos desde la UI ------------ */
+/* ---------- tomar datos desde el DOM ---------- */
 function collectFromDOM(){
   const sabor = document.querySelector('#sabor')?.value || '';
   const formato = document.querySelector('#formato')?.value || '';
@@ -85,7 +83,7 @@ function collectFromDOM(){
   return { sabor, formato, objetivo, acumulado, restante, parciales, corridaId };
 }
 
-/* ------------ gráfico 1: acumulado en el tiempo ------------ */
+/* ---------- gráfico 1: acumulado ---------- */
 function makeAvanceChartImage(parciales){
   if (!parciales.length) return null;
   const cvs = document.createElement('canvas'); cvs.width = 900; cvs.height = 420;
@@ -104,6 +102,8 @@ function makeAvanceChartImage(parciales){
     data: { labels, datasets: [{ label: 'Acumulado (botellas)', data, tension: 0.3 }] },
     options: {
       responsive: false,
+      animation: false,       // <- clave
+      events: [],             // evita listeners innecesarios
       plugins: { legend: { display: true }, title: { display: true, text: 'Avance de producción (acumulado)' } },
       scales: { y: { beginAtZero: true } }
     }
@@ -114,28 +114,23 @@ function makeAvanceChartImage(parciales){
   return url;
 }
 
-/* ------------ gráfico 2: barras por turno + objetivo ------------ */
+/* ---------- gráfico 2: barras por turno + línea objetivo ---------- */
 function makeTurnosObjetivoChartImage(parciales, formato){
   if (!parciales.length) return null;
 
   const uxp = envasesPorPaquete(formato);
-  // Agrupar por turno
-  const sumBotellas = new Map();  // turno -> total botellas
-  const objBotellas = new Map();  // turno -> objetivo en botellas (tomamos el MAYOR visto)
+  const sumBotellas = new Map();
+  const objBotellas = new Map(); // guardo el mayor objetivo en botellas por turno
 
   for (const p of parciales){
     const t = (p.turno || '').trim();
     if (!t) continue;
     sumBotellas.set(t, (sumBotellas.get(t) || 0) + (Number(p.botellas)||0));
-    const objetivoBtl = (Number(p.objCajas)||0) * uxp;
-    if (objetivoBtl > 0) {
-      objBotellas.set(t, Math.max(objBotellas.get(t)||0, objetivoBtl));
-    }
+    const obj = (Number(p.objCajas)||0) * uxp;
+    if (obj > 0) objBotellas.set(t, Math.max(objBotellas.get(t)||0, obj));
   }
-
   if (sumBotellas.size === 0) return null;
 
-  // Orden preferido
   const orden = ['A','B','C','D','Mañana','Tarde','Noche'];
   const labels = [...sumBotellas.keys()].sort((a,b)=>{
     const ia = orden.indexOf(a), ib = orden.indexOf(b);
@@ -147,27 +142,25 @@ function makeTurnosObjetivoChartImage(parciales, formato){
   const dataProducido = labels.map(t => sumBotellas.get(t) || 0);
   const dataObjetivo  = labels.map(t => objBotellas.get(t) || 0);
 
-  // Canvas
-  const cvs = document.createElement('canvas'); cvs.width = 900; cvs.height = Math.max(320, 90 + labels.length * 50);
+  const cvs = document.createElement('canvas');
+  cvs.width = 900; cvs.height = Math.max(320, 90 + labels.length * 50);
   const ctx = cvs.getContext('2d');
 
-  // Plugin para dibujar líneas verticales de objetivo por cada turno
   const objetivoPlugin = {
     id: 'objetivoLine',
-    afterDatasetsDraw(chart, args, pluginOptions){
-      const {ctx, scales} = chart;
-      const xS = scales.x, yS = scales.y;
+    afterDatasetsDraw(chart){
+      const {ctx, scales, chartArea} = chart;
+      const xS = scales.x;
       ctx.save();
       ctx.strokeStyle = 'rgba(220,0,0,0.9)';
       ctx.setLineDash([6,4]);
       ctx.lineWidth = 2;
-      labels.forEach((label, i) => {
-        const x = xS.getPixelForValue(dataObjetivo[i]);
-        const y = yS.getPixelForValue(label);
-        const halfH = (yS.getPixelForValue(label) - yS.getPixelForValue(label)) || 0; // no útil, así que fijo 16px arriba/abajo
+      dataObjetivo.forEach((v)=>{
+        if (!v) return;
+        const x = xS.getPixelForValue(v);
         ctx.beginPath();
-        ctx.moveTo(x, y - 16);
-        ctx.lineTo(x, y + 16);
+        ctx.moveTo(x, chartArea.top);
+        ctx.lineTo(x, chartArea.bottom);
         ctx.stroke();
       });
       ctx.restore();
@@ -176,15 +169,11 @@ function makeTurnosObjetivoChartImage(parciales, formato){
 
   const chart = new window.Chart(ctx, {
     type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Producido (botellas)', data: dataProducido }
-        // El objetivo lo dibujamos con el plugin como líneas verticales por categoría
-      ]
-    },
+    data: { labels, datasets: [{ label: 'Producido (botellas)', data: dataProducido }] },
     options: {
       responsive: false,
+      animation: false,       // <- clave
+      events: [],
       indexAxis: 'y',
       plugins: {
         legend: { display: true },
@@ -199,9 +188,7 @@ function makeTurnosObjetivoChartImage(parciales, formato){
           }
         }
       },
-      scales: {
-        x: { beginAtZero: true }
-      }
+      scales: { x: { beginAtZero: true } }
     },
     plugins: [objetivoPlugin]
   });
@@ -211,7 +198,7 @@ function makeTurnosObjetivoChartImage(parciales, formato){
   return url;
 }
 
-/* ------------ compartir/descargar ------------ */
+/* ---------- compartir/descargar ---------- */
 async function descargarOCompartir(doc, filename){
   const blob = doc.output('blob');
   const file = new File([blob], filename, { type: 'application/pdf' });
@@ -228,7 +215,7 @@ async function descargarOCompartir(doc, filename){
   URL.revokeObjectURL(url);
 }
 
-/* ------------ acción principal ------------ */
+/* ---------- acción principal ---------- */
 async function generarPDF(){
   try{
     const jsPDF = await ensurePDFLibs();
@@ -260,25 +247,24 @@ async function generarPDF(){
 
     let y = resumenY + 20;
 
-    // Gráfico 1: acumulado
-    const parciales = data.parciales;
-    const img1 = makeAvanceChartImage(parciales);
+    // Gráfico 1
+    const img1 = makeAvanceChartImage(data.parciales);
     if (img1){
       doc.addImage(img1, 'PNG', marginX, y, pageW - marginX*2, 70);
       y += 76;
     }
 
-    // Gráfico 2: barras por turno + objetivo
-    const img2 = makeTurnosObjetivoChartImage(parciales, data.formato);
+    // Gráfico 2
+    const img2 = makeTurnosObjetivoChartImage(data.parciales, data.formato);
     if (img2){
       doc.addImage(img2, 'PNG', marginX, y, pageW - marginX*2, 70);
       y += 76;
     }
 
-    // Tabla de parciales
-    if (parciales.length){
+    // Tabla
+    if (data.parciales.length){
       const uxp = envasesPorPaquete(data.formato);
-      const body = parciales.map(p => {
+      const body = data.parciales.map(p => {
         const cajasHechas = uxp>0 ? (Number(p.botellas||0)/uxp) : 0;
         const pctTurno = (p.objCajas>0) ? Math.round(cajasHechas*100/p.objCajas) : 0;
         return [
@@ -311,9 +297,9 @@ async function generarPDF(){
     await descargarOCompartir(doc, nombre);
   }catch(e){
     console.error('Error generando PDF:', e);
-    alert('No se pudo generar el PDF. Revisá la consola para más detalle.');
+    alert('No se pudo generar el PDF. Revisá la consola.');
   }
 }
 
-/* ------------ botón ------------ */
+/* ---------- botón ---------- */
 document.getElementById('btnPDF')?.addEventListener('click', generarPDF);
