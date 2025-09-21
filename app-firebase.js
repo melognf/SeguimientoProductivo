@@ -2,15 +2,17 @@
 import { app, db, onReadyAuth } from './firebase-config.js';
 import {
   doc, setDoc, getDoc, updateDoc, deleteDoc,
-  collection, addDoc, getDocs, query, orderBy, writeBatch, serverTimestamp
+  collection, addDoc, getDocs, query, orderBy, writeBatch, serverTimestamp,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-/***** Estado (igual UI) *****/
+/***** Estado *****/
 const estado = {
   corridaId: null,  // SABOR_FORMATO_YYYY-MM-DD
   sabor: '', formato: '', objetivoTotal: 0,
   parciales: []     // {id, tsMs, turno, operador, objetivoTurno (cajas), botellas}
 };
+
 const $ = s => document.querySelector(s);
 const fmt = n => new Intl.NumberFormat('es-AR').format(n);
 const hoyISO = () => {
@@ -23,7 +25,7 @@ const saborEl = $('#sabor'), formatoEl = $('#formato'), objetivoTotalEl = $('#ob
 const turnoEl = $('#turno'), operadorEl = $('#operador'), objetivoTurnoEl = $('#objetivoTurno'), botellasParcialEl = $('#botellasParcial');
 const barraEl = $('#barra'), vObjetivoEl = $('#vObjetivo'), vAcumuladoEl = $('#vAcumulado'), vRestanteEl = $('#vRestante'), listaParcialesEl = $('#listaParciales');
 
-/***** Helpers dominio *****/
+/***** Dominio *****/
 // Envases por paquete según formato
 function envasesPorPaquete(formato){
   const n = parseInt(String(formato || '').replace(/\D/g,''), 10);
@@ -110,23 +112,39 @@ async function startListeners(){
   const parcialesRef = collection(corridaRef, 'parciales');
 
   // Doc principal
-  unsubCorrida = (await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"))
-    .onSnapshot(corridaRef, (snap) => {
-      if (!snap.exists()) return; // eliminada
-      const data = snap.data();
-      estado.sabor = data.sabor || '';
-      estado.formato = data.formato || '';
-      estado.objetivoTotal = Number(data.objetivoTotal) || 0;
-      renderHeader(); renderResumen();
-    });
+  unsubCorrida = onSnapshot(corridaRef, (snap) => {
+    if (!snap.exists()) return; // eliminada
+    const data = snap.data();
+    estado.sabor = data.sabor || '';
+    estado.formato = data.formato || '';
+    estado.objetivoTotal = Number(data.objetivoTotal) || 0;
+    renderHeader(); renderResumen();
+  });
 
   // Subcolección en tiempo real (orden por tsMs)
   const q = query(parcialesRef, orderBy('tsMs','asc'));
-  unsubParciales = (await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"))
-    .onSnapshot(q, (qs) => {
-      estado.parciales = qs.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderResumen(); renderParciales();
-    });
+  unsubParciales = onSnapshot(q, (qs) => {
+    estado.parciales = qs.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderResumen(); renderParciales();
+  });
+}
+
+/***** Puntero global a corrida actual *****/
+async function abrirCorridaActual(){
+  try{
+    const metaRef = doc(db, 'meta', 'actual');
+    const snap = await getDoc(metaRef);
+    if (snap.exists()){
+      const { corridaId } = snap.data();
+      estado.corridaId = corridaId || null;
+    } else {
+      estado.corridaId = null;
+    }
+  }catch(e){
+    console.error('No se pudo leer meta/actual:', e);
+    estado.corridaId = null;
+  }
+  startListeners();
 }
 
 /***** Acciones (Firestore) *****/
@@ -147,19 +165,25 @@ async function guardarCorrida(){
     const snap = await getDoc(corridaRef);
 
     if (snap.exists()) {
-      // ✅ UPDATE (no tocamos createdAt)
+      // UPDATE (no tocamos createdAt)
       await updateDoc(corridaRef, {
         sabor, formato, objetivoTotal: obj,
         updatedAt: serverTimestamp()
       });
     } else {
-      // ✅ CREATE (incluye createdAt)
+      // CREATE (con createdAt)
       await setDoc(corridaRef, {
         sabor, formato, objetivoTotal: obj,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
     }
+
+    // Puntero global a la corrida actual (para abrirla en otros dispositivos)
+    await setDoc(doc(db, 'meta', 'actual'), {
+      corridaId: id,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
 
     estado.corridaId = id;
     objetivoTotalEl.value = '';   // limpiar input si querés
@@ -169,13 +193,12 @@ async function guardarCorrida(){
     alert(
       'No se pudo guardar el objetivo.\n' +
       'Posibles causas:\n' +
-      '• Reglas de Firestore (createdAt en update)\n' +
+      '• Reglas de Firestore\n' +
       '• App Check en “Aplicar/Enforce” sin configurar claves\n' +
       '• Dominio no autorizado en Authentication → Settings → Authorized domains'
     );
   }
 }
-
 
 async function agregarParcial(){
   if(!estado.corridaId){ alert('Primero guardá la corrida.'); return; }
@@ -199,6 +222,9 @@ async function agregarParcial(){
     objetivoTurno,             // CAJAS
     botellas                   // BOTELLAS
   });
+
+  // mantener "reciente" la corrida
+  await updateDoc(corridaRef, { updatedAt: serverTimestamp() });
 
   // limpiar inputs de parcial (mantené el turno si querés)
   operadorEl.value = '';
@@ -227,6 +253,12 @@ async function reiniciarCorrida(){
 
   await deleteDoc(corridaRef);
 
+  // actualizar puntero global a "sin corrida"
+  await setDoc(doc(db, 'meta', 'actual'), {
+    corridaId: '',  // vacío → abrirá nada
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+
   // limpiar estado/UI
   estado.corridaId = null;
   estado.sabor = ''; estado.formato=''; estado.objetivoTotal = 0; estado.parciales = [];
@@ -240,9 +272,7 @@ document.getElementById('btnGuardarCorrida').addEventListener('click', guardarCo
 document.getElementById('btnAgregarParcial').addEventListener('click', agregarParcial);
 document.getElementById('btnReiniciar')?.addEventListener('click', reiniciarCorrida);
 
-// Esperar auth y luego iniciar listeners (por si ya tenías una corrida en chips)
+// Al tener auth, abrimos automáticamente la corrida actual (si existe)
 onReadyAuth(() => {
-  // si dejaste chips visibles por local UI, respetamos eso; si no, mostramos ayuda
-  renderHeader(); renderResumen(); renderParciales();
-  // No arrancamos listeners hasta que guardes una corrida nueva (o podés setear estado.corridaId aquí si querés reabrir una).
+  abrirCorridaActual();
 });
