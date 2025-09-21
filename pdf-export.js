@@ -85,23 +85,53 @@ function collectFromDOM(){
 
 /* ---------- gráfico 1: acumulado ---------- */
 /* ---------- gráfico 1: acumulado + línea de objetivo ---------- */
+/* ---------- gráfico 1: acumulado + línea de objetivo (colores & nitidez) ---------- */
 function makeAvanceChartImage(parciales, objetivoTotalBotellas){
   if (!parciales.length) return null;
 
-  const cvs = document.createElement('canvas'); cvs.width = 900; cvs.height = 420;
+  // Canvas más grande para mejor definición (Chart lo renderiza a 2x DPI)
+  const cvs = document.createElement('canvas');
+  cvs.width  = 1200;
+  cvs.height = 560;
   const ctx = cvs.getContext('2d');
 
+  // Paleta
+  const C_LINE   = '#0b5fc0';            // azul línea acumulado
+  const C_FILL   = 'rgba(17,112,214,.12)'; // relleno suave
+  const C_AXIS   = '#334155';            // texto ejes
+  const C_GRID   = '#e5e7eb';            // grilla
+  const C_TITLE  = '#111827';
+  const C_OBJ    = '#dc2626';            // rojo objetivo
+
+  // Serie acumulada
   let acum = 0;
-  const labels = [];
+  const labels   = [];
   const dataAcum = parciales.map(p => {
     labels.push(p.fechaTxt || '');
     acum += Number(p.botellas || 0);
     return acum;
   });
 
-  // para que el objetivo entre en la escala del eje Y
+  // Que el objetivo entre en el eje Y
   const maxY = Math.max(...dataAcum, Number(objetivoTotalBotellas||0));
-  const suggestedMax = Math.ceil(maxY * 1.1);  // 10% de aire
+  const suggestedMax = Math.ceil(maxY * 1.1);
+
+  // Etiqueta del último punto (para lectura rápida)
+  const endLabelPlugin = {
+    id: 'endLabel',
+    afterDatasetsDraw(chart) {
+      const {ctx} = chart;
+      const meta = chart.getDatasetMeta(0);
+      if (!meta?.data?.length) return;
+      const last = meta.data[meta.data.length - 1];
+      const val  = dataAcum[dataAcum.length - 1] || 0;
+      ctx.save();
+      ctx.fillStyle = C_LINE;
+      ctx.font = 'bold 12px Helvetica, Arial, sans-serif';
+      ctx.fillText(val.toLocaleString('es-AR') + ' bot.', last.x + 8, last.y - 8);
+      ctx.restore();
+    }
+  };
 
   const chart = new window.Chart(ctx, {
     type: 'line',
@@ -112,16 +142,21 @@ function makeAvanceChartImage(parciales, objetivoTotalBotellas){
           label: 'Acumulado (botellas)',
           data: dataAcum,
           tension: 0.3,
-          borderWidth: 2,
-          pointRadius: 2
+          borderColor: C_LINE,
+          backgroundColor: C_FILL,
+          borderWidth: 3,
+          pointRadius: 3,
+          pointBackgroundColor: C_LINE,
+          pointBorderColor: C_LINE,
+          fill: true
         },
         {
           label: 'Objetivo (botellas)',
           data: labels.map(() => Number(objetivoTotalBotellas||0)),
           borderWidth: 2,
           pointRadius: 0,
-          borderDash: [6, 4],
-          borderColor: 'rgba(220,0,0,0.9)'
+          borderDash: [8, 5],
+          borderColor: C_OBJ
         }
       ]
     },
@@ -129,20 +164,40 @@ function makeAvanceChartImage(parciales, objetivoTotalBotellas){
       responsive: false,
       animation: false,
       events: [],
+      devicePixelRatio: 2,   // más nitidez en la imagen exportada
       plugins: {
-        legend: { display: true },
-        title: { display: true, text: 'Avance de producción (acumulado)' }
+        legend: {
+          display: true,
+          labels: { color: C_AXIS, usePointStyle: true, boxWidth: 12 }
+        },
+        title: {
+          display: true,
+          text: 'Avance de producción (acumulado)',
+          color: C_TITLE,
+          font: { weight: 'bold', size: 14 }
+        }
       },
       scales: {
-        y: { beginAtZero: true, suggestedMax }
+        x: {
+          ticks: { color: C_AXIS, font: { size: 11 } },
+          grid:  { color: C_GRID }
+        },
+        y: {
+          beginAtZero: true,
+          suggestedMax,
+          ticks: { color: C_AXIS, font: { size: 11 } },
+          grid:  { color: C_GRID }
+        }
       }
-    }
+    },
+    plugins: [endLabelPlugin]
   });
 
   const url = cvs.toDataURL('image/png');
   chart.destroy();
   return url;
 }
+
 
 
 /* ---------- gráfico 2: barras por turno + línea objetivo ---------- */
@@ -287,11 +342,11 @@ async function generarPDF(){
     }
 
     // Gráfico 2
-    const img2 = makeTurnosObjetivoChartImage(data.parciales, data.formato);
-    if (img2){
-      doc.addImage(img2, 'PNG', marginX, y, pageW - marginX*2, 70);
-      y += 76;
-    }
+    //const img2 = makeTurnosObjetivoChartImage(data.parciales, data.formato);
+    //if (img2){
+    //  doc.addImage(img2, 'PNG', marginX, y, pageW - marginX*2, 70);
+    //  y += 76;//
+    //}
 
     // Tabla
     if (data.parciales.length){
