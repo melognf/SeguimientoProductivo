@@ -557,8 +557,15 @@ input, select{ overflow:hidden; text-overflow:ellipsis; }
   .theme-btn{ order: 2; margin-left: 0; } /* botón debajo, alineado a la izq. */
 }
 
-/* Extra margen inferior para el botón PDF (con safe-area en iOS) */
+/* Espacio inferior robusto para el botón PDF (evita colapso + safe-area) */
+.wrap{
+  padding-bottom: calc(50px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Alternativa: evitar colapso de márgenes */
+.wrap{ display: flow-root; }   /* o: overflow:auto; */
+
+
 #btnPDF{
-  margin-bottom: 96px; /* fallback para todos los navegadores */
-  margin-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); /* iOS notch */
+  margin-bottom: 10px; /* margen mínimo; el aire real lo da el padding del wrap */
 }
