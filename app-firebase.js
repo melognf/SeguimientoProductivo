@@ -300,12 +300,36 @@ async function cloudReiniciarCorrida(){
   await setDoc(doc(cloud.db, 'meta', 'actual'), { corridaId: '', updatedAt: serverTimestamp() }, { merge: true });
 }
 
-// ===== Tema global (claro/oscuro) con switch dentro del card "Estado de la corrida" =====
+// ===== Toggle de tema global junto al título =====
 (function(){
   const THEME_KEY = 'ui_theme'; // 'light' | 'dark' | null (seguir sistema)
   const root = document.documentElement;
 
-  function applyTheme(mode){ // mode: 'light' | 'dark' | null
+  // Crea fila de título y botón “Claro/Oscuro” al lado del H1
+  const wrap = document.querySelector('.wrap');
+  const h1   = wrap?.querySelector('h1');
+  if (!wrap || !h1) return;
+
+  // Contenedor flex
+  const row = document.createElement('div');
+  row.className = 'title-row';
+  h1.parentNode.insertBefore(row, h1); // insertar fila antes del h1
+  row.appendChild(h1);                 // mover h1 dentro
+
+  // Botón
+  const btn = document.createElement('button');
+  btn.id = 'themeToggleTop';
+  btn.className = 'theme-btn';
+  btn.type = 'button';
+  btn.textContent = 'Claro'; // se actualiza luego
+  row.appendChild(btn);
+
+  function isDarkNow(mode){
+    return mode ? (mode === 'dark')
+                : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  function applyTheme(mode){ // 'light' | 'dark' | null
     if(mode === 'dark'){
       root.setAttribute('data-theme','dark');
     }else if(mode === 'light'){
@@ -313,42 +337,27 @@ async function cloudReiniciarCorrida(){
     }else{
       root.removeAttribute('data-theme'); // seguir sistema
     }
-    updateSwitch(mode);
+    updateBtn(mode);
   }
 
-  function updateSwitch(mode){
-    const btn = document.getElementById('appThemeToggle');
-    if(!btn) return;
-    // ¿está oscuro ahora?
-    const isDark = mode ? (mode === 'dark') : window.matchMedia('(prefers-color-scheme: dark)').matches;
-    btn.classList.toggle('on', isDark);
-    btn.setAttribute('aria-checked', isDark ? 'true' : 'false');
+  function updateBtn(mode){
+    const dark = isDarkNow(mode);
+    btn.textContent = dark ? 'Oscuro' : 'Claro';
+    btn.setAttribute('aria-label', `Cambiar a ${dark ? 'claro' : 'oscuro'}`);
+    btn.title = btn.getAttribute('aria-label');
   }
 
-  // Crear el switch dentro del 2º card (Estado de la corrida)
-  const estadoCard = document.querySelector('.wrap > section.card:nth-of-type(2)');
-  if (!estadoCard) return;
-  const btn = document.createElement('button');
-  btn.id = 'appThemeToggle';
-  btn.className = 'mini-switch';
-  btn.setAttribute('aria-label', 'Cambiar tema (oscuro/claro)');
-  btn.setAttribute('role', 'switch');
-  btn.setAttribute('aria-checked', 'false');
-  estadoCard.appendChild(btn);
-
-  // Cargar preferencia guardada (si existe) y aplicar
+  // Init: preferencia guardada o sistema
   const saved = localStorage.getItem(THEME_KEY); // 'light' | 'dark' | null
   applyTheme(saved || null);
 
-  // Si el usuario no eligió nada, al cambiar el sistema en vivo, reflejar en el switch
+  // Si está en “auto” (sin preferencia guardada), reflejar cambios del sistema
   const mq = window.matchMedia('(prefers-color-scheme: dark)');
   mq.addEventListener?.('change', () => {
-    if (!localStorage.getItem(THEME_KEY)) { // sólo si sigue “automático”
-      applyTheme(null);
-    }
+    if (!localStorage.getItem(THEME_KEY)) applyTheme(null);
   });
 
-  // Toggle: alternar entre claro y oscuro (si querés, podemos agregar un tercer estado “auto”)
+  // Toggle manual: alterna entre claro/oscuro (si querés, luego agregamos un 3er estado “Auto”)
   btn.addEventListener('click', () => {
     const current = root.getAttribute('data-theme'); // 'light' | 'dark' | null
     const next = (current === 'dark') ? 'light' : 'dark';

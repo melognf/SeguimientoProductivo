@@ -461,8 +461,56 @@ input, select{ overflow:hidden; text-overflow:ellipsis; }
 .mini-switch.on{ background:#2563eb; border-color:#1d4ed8; }
 .mini-switch.on::after{ transform: translateX(20px); }
 
-/* ================== TEMA OSCURO (Variables) ================== */
-/* A) Si el usuario NO forzó tema, seguí la preferencia del sistema */
+
+/* ==== Fila del título con botón de tema ==== */
+.title-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
+}
+
+/* ==== Botón de tema (Claro / Oscuro) ==== */
+.theme-btn{
+  appearance:none;
+  border:1px solid #d6dceb;
+  background: var(--card);
+  color: var(--ink);
+  padding:8px 14px;
+  border-radius:999px;
+  font-weight:800;
+  box-shadow: 0 6px 18px rgba(0,0,0,.10);
+  cursor:pointer;
+  line-height:1;
+  white-space:nowrap;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease, opacity .15s ease;
+}
+.theme-btn:hover{ transform: translateY(-1px); box-shadow: 0 10px 24px rgba(0,0,0,.12); }
+.theme-btn:active{ transform: translateY(0); }
+.theme-btn:disabled{ opacity:.6; cursor:not-allowed; }
+
+/* Mejor borde en oscuro */
+:root[data-theme="dark"] .theme-btn{ border-color:#2b3c64; }
+
+/* Responsive */
+@media (max-width:480px){
+  .title-row{ gap:8px; }
+  .theme-btn{ padding:6px 12px; font-weight:700; }
+}
+
+/* ===== Tema oscuro (variables) ===== */
+:root[data-theme="dark"]{
+  --bg:#0b1220;
+  --card:#111827;
+  --ink:#e5e7eb;
+  --muted:#94a3b8;
+  --brand:#3b82f6;
+  --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+  --shadow: 0 10px 30px rgba(0,0,0,.45);
+}
+
+/* Auto: sin preferencia guardada, seguir el sistema */
 @media (prefers-color-scheme: dark){
   :root:not([data-theme]){
     --bg:#0b1220;
@@ -475,51 +523,5 @@ input, select{ overflow:hidden; text-overflow:ellipsis; }
   }
 }
 
-/* B) Forzar oscuro manualmente cuando data-theme="dark" */
-:root[data-theme="dark"]{
-  --bg:#0b1220;
-  --card:#111827;
-  --ink:#e5e7eb;
-  --muted:#94a3b8;
-  --brand:#3b82f6;
-  --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
-  --shadow: 0 10px 30px rgba(0,0,0,.45);
-}
-
-/* (Opcional) Forzar claro manualmente */
-:root[data-theme="light"]{
-  /* sin cambios: usás tus variables actuales */
-}
-
-/* ================== Overrides de componentes en DARK ================== */
-/* 1) Cuando el usuario fuerza oscuro */
-:root[data-theme="dark"] body{ background: var(--bg); color: var(--ink); }
-:root[data-theme="dark"] .card{ background:var(--card); color:var(--ink); box-shadow:var(--shadow); border-color:#2b3c64; }
-:root[data-theme="dark"] input,
-:root[data-theme="dark"] select{ background:#0f172a; border-color:#334155; color:var(--ink); }
-:root[data-theme="dark"] input::placeholder,
-:root[data-theme="dark"] select::placeholder{ color:#7c8aa3; }
-:root[data-theme="dark"] .progress{ background:#1f2a44; border-color:#334155; }
-:root[data-theme="dark"] .tabla .thead{ background:#1f2a44; color:var(--ink); }
-:root[data-theme="dark"] .tabla .row{ background:#0f172a; border-color:#263244; }
-:root[data-theme="dark"] #corridaInfo{ color:var(--ink); }
-:root[data-theme="dark"] .corrida-badge{ background:#0f1b30; border-color:#20345c; color:#9cc0ff; }
-:root[data-theme="dark"] .corrida-badge.id{ background:#0f172a; border-color:#263244; color:#cbd5e1; }
-:root[data-theme="dark"] .btn{ box-shadow: 0 8px 24px rgba(0,0,0,.35); }
-
-/* 2) Cuando se usa el modo “auto” (dark del sistema y NO hay data-theme) */
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme]) body{ background: var(--bg); color: var(--ink); }
-  :root:not([data-theme]) .card{ background:var(--card); color:var(--ink); box-shadow:var(--shadow); border-color:#2b3c64; }
-  :root:not([data-theme]) input,
-  :root:not([data-theme]) select{ background:#0f172a; border-color:#334155; color:var(--ink); }
-  :root:not([data-theme]) input::placeholder,
-  :root:not([data-theme]) select::placeholder{ color:#7c8aa3; }
-  :root:not([data-theme]) .progress{ background:#1f2a44; border-color:#334155; }
-  :root:not([data-theme]) .tabla .thead{ background:#1f2a44; color:var(--ink); }
-  :root:not([data-theme]) .tabla .row{ background:#0f172a; border-color:#263244; }
-  :root:not([data-theme]) #corridaInfo{ color:var(--ink); }
-  :root:not([data-theme]) .corrida-badge{ background:#0f1b30; border-color:#20345c; color:#9cc0ff; }
-  :root:not([data-theme]) .corrida-badge.id{ background:#0f172a; border-color:#263244; color:#cbd5e1; }
-  :root:not([data-theme]) .btn{ box-shadow: 0 8px 24px rgba(0,0,0,.35); }
-}
+/* (detalle) mejor borde del botón en oscuro */
+:root[data-theme="dark"] .theme-btn{ border-color:#2b3c64; }
