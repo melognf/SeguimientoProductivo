@@ -314,7 +314,10 @@ async function cloudReiniciarCorrida(){
   const row = document.createElement('div');
   row.className = 'title-row';
   h1.parentNode.insertBefore(row, h1); // insertar fila antes del h1
-  row.appendChild(h1);                 // mover h1 dentro
+  row.appendChild(h1);
+  // Evita que "Línea 1" se separe en dos líneas
+  h1.innerHTML = h1.innerHTML.replace(/L[ií]nea 1/, m => m.replace(' ', '&nbsp;'));
+                 // mover h1 dentro
 
   // Botón
   const btn = document.createElement('button');
