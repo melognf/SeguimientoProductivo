@@ -525,3 +525,28 @@ input, select{ overflow:hidden; text-overflow:ellipsis; }
 
 /* (detalle) mejor borde del botón en oscuro */
 :root[data-theme="dark"] .theme-btn{ border-color:#2b3c64; }
+
+/* Fila del título fija en una sola línea */
+.title-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap: nowrap;          /* no permitir salto */
+}
+
+/* Evitar que "LINEA 1" se parta */
+.title-row h1{
+  white-space: nowrap;        /* mantener en una sola línea */
+  margin: 0;
+}
+
+/* Botón a la derecha y que no empuje al H1 */
+.theme-btn{
+  margin-left: auto;          /* lo “pega” a la derecha */
+  flex: 0 0 auto;             /* no crecer/encoger raro */
+}
+
+/* Un pelín más chico en pantallas chicas para no empujar el H1 */
+@media (max-width: 480px){
+  .theme-btn{ padding:6px 10px; font-size:.9rem; }
+}
