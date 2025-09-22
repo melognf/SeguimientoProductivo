@@ -526,29 +526,33 @@ input, select{ overflow:hidden; text-overflow:ellipsis; }
 /* (detalle) mejor borde del botón en oscuro */
 :root[data-theme="dark"] .theme-btn{ border-color:#2b3c64; }
 
-/* --- Título + botón de tema: que NUNCA se parta --- */
+/* ===== Título + botón de tema (responsive, sin cortes) ===== */
 .title-row{
   display:flex;
   align-items:center;
   gap:12px;
-  flex-wrap: nowrap;          /* no permitimos salto */
+  margin-bottom:14px;
+  flex-wrap: nowrap;        /* en desktop queda todo en una fila */
 }
 
 .title-row h1{
   margin:0;
-  white-space: nowrap;        /* mantener en una sola línea */
-  flex: 1 1 auto;             /* que ocupe todo el ancho disponible */
-  min-width: 0;               /* permite recortar en lugar de empujar */
-  overflow: hidden;
-  text-overflow: ellipsis;    /* si no entra, muestra … en vez de saltar */
+  flex: 1 1 auto;           /* ocupa el espacio disponible */
+  white-space: normal;      /* permite que el título salte de línea */
+  min-width: 0;
+  overflow: visible;        /* nada de “…” */
+  text-overflow: clip;
+  font-size: clamp(1.25rem, 5vw, 2rem); /* se adapta un poco al ancho */
 }
 
 .theme-btn{
-  margin-left: auto;          /* botón pegado a la derecha */
-  flex: 0 0 auto;             /* no crecer/encoger */
+  margin-left:auto;
+  flex: 0 0 auto;           /* el botón no se encoge */
 }
 
-/* Ajustes finos en pantallas muy angostas */
-@media (max-width: 400px){
-  .theme-btn{ padding:6px 10px; font-size:.9rem; }
+/* En pantallas angostas: el botón baja a la línea siguiente */
+@media (max-width: 560px){
+  .title-row{ flex-wrap: wrap; }
+  .title-row h1{ flex: 1 0 100%; } /* el H1 ocupa todo el ancho */
+  .theme-btn{ order: 2; margin-left: 0; } /* botón debajo, alineado a la izq. */
 }
