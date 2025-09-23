@@ -569,3 +569,13 @@ input, select{ overflow:hidden; text-overflow:ellipsis; }
 #btnPDF{
   margin-bottom: 10px; /* margen mínimo; el aire real lo da el padding del wrap */
 }
+
+.corrida-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+  margin:6px 0 10px; /* un poquito de aire bajo el h2 */
+}
+
+.corrida-meta .corrida-badge.id { display: none !important; }

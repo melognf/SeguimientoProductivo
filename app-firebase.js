@@ -19,6 +19,17 @@ const saborEl = $('#sabor'), formatoEl = $('#formato'), objetivoTotalEl = $('#ob
 const turnoEl = $('#turno'), operadorEl = $('#operador'), objetivoTurnoEl = $('#objetivoTurno'), botellasParcialEl = $('#botellasParcial');
 const barraEl = $('#barra'), vObjetivoEl = $('#vObjetivo'), vAcumuladoEl = $('#vAcumulado'), vRestanteEl = $('#vRestante'), listaParcialesEl = $('#listaParciales');
 
+// --- Mover #corridaInfo a la tarjeta "Estado de la corrida" (debajo del h2) ---
+(() => {
+  const estadoCard = document.querySelector('.wrap > section.card:nth-of-type(2)');
+  const h2 = estadoCard?.querySelector('h2');
+  if (estadoCard && h2 && corridaInfoEl) {
+    corridaInfoEl.classList.remove('muted');     // que no quede gris
+    corridaInfoEl.classList.add('corrida-meta'); // estilo para esa zona
+    h2.insertAdjacentElement('afterend', corridaInfoEl);
+  }
+})();
+
 /***** Render (TU VERSIÓN) *****/
 function renderHeader(){
   if(!estado.corridaId){
@@ -71,11 +82,17 @@ function renderParciales(){
   }
 }
 function renderAll(){
-  if(estado.sabor) saborEl.value = estado.sabor;
-  if(estado.formato) formatoEl.value = estado.formato;
-  if(estado.objetivoTotal) objetivoTotalEl.value = estado.objetivoTotal;
-  renderHeader(); renderResumen(); renderParciales();
+  // SIEMPRE mostrar placeholders en "Nueva corrida"
+  if (saborEl)   { saborEl.selectedIndex = 0; saborEl.value = ''; }
+  if (formatoEl) { formatoEl.selectedIndex = 0; formatoEl.value = ''; }
+  if (objetivoTotalEl) objetivoTotalEl.value = '';
+
+  // El resto de la UI sigue reflejando la corrida actual
+  renderHeader();
+  renderResumen();
+  renderParciales();
 }
+
 
 /***** Acciones (LOCAL por defecto) *****/
 function guardarCorrida(){
